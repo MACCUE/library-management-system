@@ -29,29 +29,40 @@
 
 ### Schema Decisions
 
-The Prisma schema is in `api/prisma/schema.prisma`. It models `Role` as a
-closed enum, keeps users and genres in separate tables, and gives each book a
-required `genreId` foreign key. A normalized genre table avoids repeating
-genre names in every book row and lets the database enforce valid genre
-references. Reviews are separate records linked to both a book and a user so
-they can carry a rating and comment; a user can leave at most one review per
-book. Compared with a document database, this relational design stores a
-book's genre as a foreign key instead of embedding genre details in each book,
-trading an extra join for consistent, centrally managed genre data.
+The Prisma schema is in `api/prisma/schema.prisma`. User, genre, book, and
+review IDs are auto-incrementing integers. `Role` restricts user roles to
+`PATRON` and `LIBRARIAN`, and the user model includes a password field (store
+password hashes, not plaintext passwords, in a real application). A genre has
+a unique name and slug. Each book has a unique ISBN and references its genre
+through `genreId`; copy counts default to one. The optional Review model links
+a user to a book and prevents duplicate reviews by the same user for a book.
 
-The seed inserts four genres and 15 books. It uses upserts, so rerunning it
-does not delete existing users or duplicate seeded books.
+Genres are normalized into their own table instead of repeating genre details
+in every book record. This gives the database one canonical genre per book and
+allows genre references to be validated, at the cost of a join when retrieving
+book and genre details. A document database could embed genre details in book
+documents, which avoids that join but duplicates data and makes genre updates
+harder to keep consistent.
 
-1. Copy `api/.env.example` to the repository root as `.env` and set
+The seed inserts four genres and 40 sample books (10 in each genre). It uses
+upserts and stable demo ISBNs, so rerunning it does not delete users or create
+duplicate books. It also removes only the 15 ISBN-marked sample rows from the
+previous assignment seed (when they have no reviews) and its now-empty legacy
+genres.
+
+1. Copy `api/.env.example` to `api/.env` and set
    `DATABASE_URL` to your PostgreSQL connection string. Do not commit `.env`.
 2. Generate the Prisma client: `npm run db:generate`.
-3. Apply the committed migration to the configured PostgreSQL database:
+3. Apply the committed migrations to the configured PostgreSQL database:
    `npm run db:deploy`. For local development, use `npm run db:migrate`.
 4. Insert the catalog data: `npm run db:seed`.
 5. Type-check the API Prisma code: `npm run typecheck:api`.
 
-The seed command requires Node.js 22.6 or later for native TypeScript type
-stripping.
+The schema-alignment migration preserves existing genres and books. It
+intentionally stops if the database already contains users or reviews, since
+the old schema has no password values and changing the related IDs cannot be
+done safely without a separate user/review migration. The seed command
+requires Node.js 22.6 or later for native TypeScript type stripping.
 
 ## Project setup
 
