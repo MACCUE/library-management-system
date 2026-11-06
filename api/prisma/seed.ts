@@ -1,4 +1,20 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { parseEnv } from 'node:util';
 import { PrismaClient } from '@prisma/client';
+
+const apiEnvPath = fileURLToPath(new URL('../.env', import.meta.url));
+const configuredDatabaseUrl = process.env.DATABASE_URL;
+const hasPlaceholderUrl =
+  configuredDatabaseUrl &&
+  /(?:HOST(?::\d+)?|USER:PASSWORD|\/DATABASE(?:[?]|$))/i.test(configuredDatabaseUrl);
+
+if (existsSync(apiEnvPath) && (!configuredDatabaseUrl || hasPlaceholderUrl)) {
+  const apiEnv = parseEnv(readFileSync(apiEnvPath, 'utf8'));
+  if (apiEnv.DATABASE_URL) {
+    process.env.DATABASE_URL = apiEnv.DATABASE_URL;
+  }
+}
 
 const prisma = new PrismaClient();
 
