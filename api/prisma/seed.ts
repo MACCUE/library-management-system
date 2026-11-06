@@ -1,62 +1,90 @@
-import { PrismaClient } from '@prisma/client';
-
+import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
-const genres = ['Fiction', 'Technology', 'History', 'Science'];
-
-const books = [
-  { title: 'To Kill a Mockingbird', author: 'Harper Lee', genre: 'Fiction' },
-  { title: '1984', author: 'George Orwell', genre: 'Fiction' },
-  { title: 'Pride and Prejudice', author: 'Jane Austen', genre: 'Fiction' },
-  { title: 'The Great Gatsby', author: 'F. Scott Fitzgerald', genre: 'Fiction' },
-  { title: 'Moby-Dick', author: 'Herman Melville', genre: 'Fiction' },
-  { title: 'Clean Code', author: 'Robert C. Martin', genre: 'Technology' },
-  { title: 'The Pragmatic Programmer', author: 'Andrew Hunt', genre: 'Technology' },
-  { title: 'Design Patterns', author: 'Erich Gamma', genre: 'Technology' },
-  { title: 'JavaScript: The Good Parts', author: 'Douglas Crockford', genre: 'Technology' },
-  { title: 'Introduction to Algorithms', author: 'Thomas H. Cormen', genre: 'Technology' },
-  { title: 'Sapiens', author: 'Yuval Noah Harari', genre: 'History' },
-  { title: 'Guns, Germs, and Steel', author: 'Jared Diamond', genre: 'History' },
-  { title: "A People's History of the United States", author: 'Howard Zinn', genre: 'History' },
-  { title: 'A Brief History of Time', author: 'Stephen Hawking', genre: 'Science' },
-  { title: 'Cosmos', author: 'Carl Sagan', genre: 'Science' },
-];
-
 async function main() {
-  await prisma.$transaction(async (transaction) => {
-    const genreIds = new Map<string, string>();
+  // Clear existing records to avoid unique constraint duplicates on re-run
+  await prisma.book.deleteMany();
+  await prisma.genre.deleteMany();
 
-    for (const name of genres) {
-      const genre = await transaction.genre.upsert({
-        where: { name },
-        update: {},
-        create: { name },
+  const genreNames = ["Fantasy", "Science Fiction", "Mystery", "Biography"];
+  const genres = await Promise.all(
+    genreNames.map((name) =>
+      prisma.genre.create({
+        data: { name, slug: name.toLowerCase().replace(/\s+/g, "-") },
+      }),
+    ),
+  );
+
+  const sampleBooks = [
+    // Fantasy
+    { title: "The Hobbit", author: "J.R.R. Tolkien", genre: "Fantasy" },
+    { title: "The Fellowship of the Ring", author: "J.R.R. Tolkien", genre: "Fantasy" },
+    { title: "A Game of Thrones", author: "George R.R. Martin", genre: "Fantasy" },
+    { title: "The Way of Kings", author: "Brandon Sanderson", genre: "Fantasy" },
+    { title: "The Name of the Wind", author: "Patrick Rothfuss", genre: "Fantasy" },
+    { title: "Harry Potter and the Sorcerer's Stone", author: "J.K. Rowling", genre: "Fantasy" },
+    { title: "The Last Wish", author: "Andrzej Sapkowski", genre: "Fantasy" },
+    { title: "The Eye of the World", author: "Robert Jordan", genre: "Fantasy" },
+    { title: "American Gods", author: "Neil Gaiman", genre: "Fantasy" },
+    { title: "The Color of Magic", author: "Terry Pratchett", genre: "Fantasy" },
+
+    // Science Fiction
+    { title: "Dune", author: "Frank Herbert", genre: "Science Fiction" },
+    { title: "Ender's Game", author: "Orson Scott Card", genre: "Science Fiction" },
+    { title: "Neuromancer", author: "William Gibson", genre: "Science Fiction" },
+    { title: "Foundation", author: "Isaac Asimov", genre: "Science Fiction" },
+    { title: "Snow Crash", author: "Neal Stephenson", genre: "Science Fiction" },
+    { title: "The Martian", author: "Andy Weir", genre: "Science Fiction" },
+    { title: "Hyperion", author: "Dan Simmons", genre: "Science Fiction" },
+    { title: "The Left Hand of Darkness", author: "Ursula K. Le Guin", genre: "Science Fiction" },
+    { title: "Brave New World", author: "Aldous Huxley", genre: "Science Fiction" },
+    { title: "Fahrenheit 451", author: "Ray Bradbury", genre: "Science Fiction" },
+
+    // Mystery
+    { title: "The Big Sleep", author: "Raymond Chandler", genre: "Mystery" },
+    { title: "The Hound of the Baskervilles", author: "Arthur Conan Doyle", genre: "Mystery" },
+    { title: "Gone Girl", author: "Gillian Flynn", genre: "Mystery" },
+    { title: "The Girl with the Dragon Tattoo", author: "Stieg Larsson", genre: "Mystery" },
+    { title: "And Then There Were None", author: "Agatha Christie", genre: "Mystery" },
+    { title: "The Murders in the Rue Morgue", author: "Edgar Allan Poe", genre: "Mystery" },
+    { title: "In the Woods", author: "Tana French", genre: "Mystery" },
+    { title: "The Maltese Falcon", author: "Dashiell Hammett", genre: "Mystery" },
+    { title: "The Da Vinci Code", author: "Dan Brown", genre: "Mystery" },
+    { title: "Shutter Island", author: "Dennis Lehane", genre: "Mystery" },
+
+    // Biography
+    { title: "Educated", author: "Tara Westover", genre: "Biography" },
+    { title: "The Diary of a Young Girl", author: "Anne Frank", genre: "Biography" },
+    { title: "Steve Jobs", author: "Walter Isaacson", genre: "Biography" },
+    { title: "Becoming", author: "Michelle Obama", genre: "Biography" },
+    { title: "Long Walk to Freedom", author: "Nelson Mandela", genre: "Biography" },
+    { title: "The Autobiography of Malcolm X", author: "Malcolm X", genre: "Biography" },
+    { title: "Alexander Hamilton", author: "Ron Chernow", genre: "Biography" },
+    { title: "The Wright Brothers", author: "David McCullough", genre: "Biography" },
+    { title: "Born a Crime", author: "Trevor Noah", genre: "Biography" },
+    { title: "I Know Why the Caged Bird Sings", author: "Maya Angelou", genre: "Biography" },
+  ];
+
+  for (const book of sampleBooks) {
+    const genre = genres.find((g) => g.name === book.genre);
+    if (genre) {
+      await prisma.book.create({
+        data: {
+          title: book.title,
+          author: book.author,
+          isbn: `978${Math.floor(1000000000 + Math.random() * 9000000000)}`,
+          description: `${book.title} by ${book.author}.`,
+          totalCopies: 3,
+          availableCopies: 3,
+          genreId: genre.id,
+        },
       });
-      genreIds.set(name, genre.id);
     }
+  }
 
-    for (const { title, author, genre } of books) {
-      const genreId = genreIds.get(genre);
-      if (!genreId) {
-        throw new Error(`Missing seeded genre: ${genre}`);
-      }
-
-      await transaction.book.upsert({
-        where: { title_author: { title, author } },
-        update: { genreId },
-        create: { title, author, genreId },
-      });
-    }
-  });
-
-  console.log(`Seeded ${genres.length} genres and ${books.length} books.`);
+  console.log(`Successfully seeded ${sampleBooks.length} books across 4 genres!`);
 }
 
 main()
-  .catch((error: unknown) => {
-    console.error('Database seeding failed:', error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .catch(console.error)
+  .finally(() => prisma.$disconnect());
